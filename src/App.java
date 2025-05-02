@@ -1,7 +1,7 @@
 public class App {
     public static void main(String[] args) {
         Menu menu = new Menu();
-        menu.carregaArquivo();
-        menu.iniciarMenu();
+        menu.loadFile();
+        menu.startMenu();
     }
 }

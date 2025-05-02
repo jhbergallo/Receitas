@@ -2,12 +2,15 @@ import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Scanner;
 
 public class Menu {
-    private GerenciadorReceitas receitas = new GerenciadorReceitas();
-    Scanner sc = new Scanner(System.in);
-    public void iniciarMenu() {
+    private RecipeManager recipeManager = new RecipeManager();
+    private Scanner scanner = new Scanner(System.in);
+
+    public void startMenu() {
         System.out.println("------Bem vindo ao aplicativo de receitas!-------");
 
         System.out.println("1. Adicionar uma receita");
@@ -18,32 +21,33 @@ public class Menu {
         System.out.println("0. Sair");
 
         System.out.print("\nOpção: ");
-        int opcao = sc.nextInt();
-        sc.nextLine();
+        int option = scanner.nextInt();
+        scanner.nextLine();
 
-        switch(opcao){
+        switch(option){
             case 1: 
-            adicionarReceita();
+            addRecipe();
             break;
 
             case 2:
-            procurarReceita();
+            searchRecipeByName();
             break;
 
             case 3:
-            removerReceita();
+            removeRecipe();
             break;
 
             case 4:
-            procurarPorIngrediente();
+            searchByIngredient();
             break;
 
             case 5:
-            verReceitas();
+            listAllRecipes();
             break;
 
             case 0: 
-            receitas.addTudo();
+            recipeManager.saveAllInFile();
+            scanner.close();
             System.exit(0);
             break;
 
@@ -53,196 +57,239 @@ public class Menu {
         }
     }
 
-    public void adicionarReceita(){
+    // Adds a recipe
+    public void addRecipe(){
+        // Name
         System.out.print("\nDigite o nome para a receita: ");
-        String nome = sc.nextLine();
+        String name = scanner.nextLine();
 
+        // Ingredients
         System.out.println("\nAdicione os ingredientes da receita (Digite P para parar de adicionar)");
-        String [] ingredientes = new String[20];
-        String [] qtds = new String[20];
-        int i = 0;
-        String op = "";
+        HashMap<String, String> ingredients = new HashMap<>();
+        String ingredient = "";
+        String amount = "";
 
         while(true){
+            // Ingredient name
             System.out.print("\nDigite o ingrediente (sem a quantidade): ");
-            op = sc.nextLine();
-            if(op.equalsIgnoreCase("P")){
-                if( i == 0){
+            ingredient = scanner.nextLine();
+            if(ingredient.equalsIgnoreCase("P")){
+                if(ingredients.isEmpty()){
                     System.out.println("\nVocê precisa adicionar pelo menos um ingrediente! ");
                     continue;
                 }
                 break;
             }
             while(true){
+                // Ingredient amount
                 System.out.print("\nDigite a quantidade: ");
-                qtds[i] = sc.nextLine();
-                if(qtds[i] == null){
+                amount = scanner.nextLine();
+
+                if(amount.equalsIgnoreCase("P")){
+                    if(ingredients.isEmpty()){
+                        System.out.println("\nVocê precisa adicionar pelo menos um ingrediente!");
+                        continue;
+                    }
+                    break;
+                }
+
+                if(amount.equals("")){
                     System.out.println("\nVocê precisa digitar uma quantidade!");
                     continue;
                 } else{
+                    ingredients.put(ingredient, amount);
                     break;
                 }
             }
-            
-
-            sc.nextLine();
-            ingredientes[i] = op;
-            i++;
         }
 
-        StringBuilder sb = new StringBuilder();
+        // How to prepare
+        StringBuilder howToPrepare = new StringBuilder();
 
         System.out.println("\nAdicione os passos para o Modo de Preparo (Digite P para parar de adicionar)");
-        String p = "";
-        int in = 1;
-        while(!p.equalsIgnoreCase("P")){
-            System.out.print((in + ". "));
-            p = sc.nextLine();
-            if(p.equalsIgnoreCase("P")){
-                if(in == 1){
+        String step = "";
+        int stepNumber = 1;
+        while(!step.equalsIgnoreCase("P")){
+            System.out.print((stepNumber + ". "));
+            step = scanner.nextLine();
+            if(step.equalsIgnoreCase("P")){
+                if(stepNumber == 1){
                     System.out.println("\nVocê precisa adicionar pelo menos um passo!");
-                    p = "";
+                    step = "";
                     continue;
                 }
                 break;
             }
-            sb.append("\n" + in + ". "+ p);
-            in++;
+            howToPrepare.append("\n" + stepNumber + ". "+ step);
+            stepNumber++;
         }
 
+        // Preparation time
         System.out.print("\nDigite o tempo de preparo: ");
-        String tempo = sc.nextLine();
+        String preparationTime = scanner.nextLine();
 
-        receitas.add(new Receita(nome, ingredientes, qtds, sb.toString(), tempo));
+        recipeManager.add(new Recipe(name, ingredients, howToPrepare.toString(), preparationTime));
         System.out.println("\nReceita adicionada com sucesso!");
 
-        voltarMenu();
+        returnToMenu();
     }
 
-    public void procurarReceita(){
+    // Searches for a recipe by name
+    public void searchRecipeByName(){
         System.out.print("\nDigite o nome da receita: ");
-        String nome = sc.nextLine();
-        String result = receitas.get(nome);
+        String name = scanner.nextLine();
+        ArrayList<Recipe> foundRecipes = recipeManager.getRecipesByName(name);
 
-        if(result.equals("")){
-            System.out.println("Receita não encontrada!");
+        // Looks for the recipe
+        if(foundRecipes.isEmpty()){
+            System.out.println("Nenhuma receita encontrada com esse nome! Tente novamente.");
+            searchRecipeByName();
+            return;
         } else{
-            System.out.println(result);
+            foundRecipes.stream().forEach(recipe -> System.out.println(recipe.toString()));
         }
 
         System.out.println("\nGostaria de pesquisar outra receita? (S/N)");
-        String sn = sc.nextLine();
+        String sn = scanner.nextLine();
 
+        // If the user wants to search again
         if(sn.equalsIgnoreCase("S")){
-            procurarReceita();
+            searchRecipeByName();
         } else{
-            voltarMenu();
+            // If the user doesn't want to search again
+            returnToMenu();
         }
     }
 
-    public void removerReceita(){
+    // Removes a recipe by name
+    public void removeRecipe(){
         System.out.print("Digite o nome da receita: ");
-        String nome = sc.nextLine();
-        System.out.println("Deseja mesmo remover a receita? (S/N)");
-        String s = sc.nextLine();
+        String nome = scanner.nextLine();
 
-        if(s.equalsIgnoreCase("S")){
-            receitas.remove(nome);
+        if(nome.length() < 3){
+            System.out.println("O nome da receita deve ter pelo menos 3 caracteres!");
+            removeRecipe();
+            return;
+        } else if(recipeManager.getString(nome).equals("")){
+            System.out.println("Receita não encontrada! Tente novamente.");
+            removeRecipe();
+            return;
+        }
+
+        System.out.println("\nReceita encontrada: ");
+        System.out.println(recipeManager.getString(nome));
+        System.out.println("\n\nVocê tem certeza que deseja remover a receita " + nome + "? (S/N)");
+        
+        String option = scanner.nextLine();
+
+        if(option.equalsIgnoreCase("S")){
+            recipeManager.remove(nome);
             System.out.println("Receita removida com sucesso!");
         } 
-        voltarMenu();
+        returnToMenu();
     }
 
-    public void procurarPorIngrediente(){
+    // Shows all recipes that contain the ingredient
+    public void searchByIngredient(){
         System.out.print("\nDigite um ingrediente: ");
-        String ing = sc.nextLine();
+        String ingredient = scanner.nextLine();
 
-        String [] ingredientes = receitas.searchIngredients(ing);
+        ArrayList<Recipe> foundRecipes = recipeManager.searchByIngredient(ingredient);
 
-        for(String s : ingredientes){
-            System.out.println(s);
+        if(foundRecipes.isEmpty()){
+            System.out.println("Nenhuma receita encontrada com esse ingrediente! Tente novamente.");
+            searchByIngredient();
+            return;
         }
 
-        System.out.println("Gostaria de procurar com outro ingrediente? (S/N)");
-        String op = sc.nextLine();
+        for(Recipe recipe : foundRecipes){
+            System.out.println(recipe.toString());
+        }
 
-        if(op.equalsIgnoreCase("S")){
-            procurarPorIngrediente();
+        System.out.println("\n\nGostaria de procurar com outro ingrediente? (S/N)");
+        String option = scanner.nextLine();
+
+        if(option.equalsIgnoreCase("S")){
+            searchByIngredient();
         } else {
-            voltarMenu();
+            returnToMenu();
         }
     }
 
-    public void verReceitas(){
-        if(receitas.size() == 0){
+    // Shows all recipes
+    public void listAllRecipes(){
+        if(recipeManager.size() == 0){
             System.out.println("\nNão há receitas adicionadas!");
-            voltarMenu();
+            returnToMenu();
         } else{
-            receitas.getTudo();
-            voltarMenu();
+            recipeManager.getAll();
+            returnToMenu();
         }
     }
 
-    public void voltarMenu(){
+    // Returns to the main menu
+    public void returnToMenu(){
         System.out.println("\nDeseja voltar para o menu inicial? (S/N)");
-        String n = sc.nextLine();
+        String option = scanner.nextLine();
 
-        if(n.equalsIgnoreCase("S")){
-            iniciarMenu();
+        if(option.equalsIgnoreCase("S")){
+            startMenu();
         } else{
             
-            receitas.addTudo();
+            recipeManager.saveAllInFile();
             System.exit(0);
         }
     }
 
-    public void carregaArquivo(){
+    // Loads the recipes from the file
+    public void loadFile(){
         try{
-        BufferedReader reader = new BufferedReader(new FileReader("src/files/receitas.csv"));
-        String in = reader.readLine();
-        while(true){
-
-            String nome = in;
-            reader.readLine(); // Ingredientes
-
-            String[] ingredientes = new String[15];
-            String[] qtds = new String[15];
-
-            int i = 0;
-            in = reader.readLine();
+            BufferedReader reader = new BufferedReader(new FileReader("src/files/recipes.csv"));
+            String line = reader.readLine();
             while(true){
-                ingredientes[i] = in;
-                qtds[i] = reader.readLine();
-                i++;
-                in = reader.readLine();
-                if(in.equals("Modo de Preparo")){
+                HashMap<String, String> ingredients = new HashMap<>();
+                String name = line;
+                reader.readLine(); // Ingredients
+
+                String currentIngredient = "";
+                String currentAmount = "";
+
+                line = reader.readLine();
+                while(true){
+                    currentIngredient = line;
+                    currentAmount = reader.readLine();
+                    ingredients.put(currentIngredient, currentAmount);
+                    line = reader.readLine();
+                    if(line.equals("Modo de Preparo")){
+                        break;
+                    }
+                }
+
+                StringBuilder howToPrepare = new StringBuilder();
+
+                line = reader.readLine();
+                while(true){
+                    howToPrepare.append("\n" + line);
+                    line = reader.readLine();
+                    if(line.equals("Tempo de Preparo")){
+                        break;
+                    }
+                }
+
+                String preparationTime = reader.readLine();
+
+                // Read the separator
+                reader.readLine(); 
+
+                recipeManager.add(new Recipe(name, ingredients, howToPrepare.toString(), preparationTime));
+
+                // Read the next line
+                line = reader.readLine();
+                if(line == null){
                     break;
                 }
             }
-
-            StringBuilder sb = new StringBuilder();
-
-            in = reader.readLine();
-            while(true){
-                sb.append("\n" + in);
-                in = reader.readLine();
-                if(in.equals("Tempo de Preparo")){
-                    break;
-                }
-            }
-
-            String tempo = reader.readLine();
-
-            reader.readLine(); // -
-
-            receitas.add(new Receita(nome, ingredientes, qtds, sb.toString(), tempo));
-
-            in = reader.readLine();
-            if(in == null){
-                break;
-            }
-        }
-        reader.close();
+            reader.close();
         } catch(FileNotFoundException e){
             System.out.println("Arquivo não encontrado!");
         } catch(IOException c){
